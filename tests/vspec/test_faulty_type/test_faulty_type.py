@@ -6,17 +6,21 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEST_UNITS = HERE / ".." / "test_units.yaml"
+TEST_QUANT = HERE / ".." / "test_quantities.yaml"
 
 
 def test_error(tmp_path):
     spec = HERE / "test.vspec"
     output = tmp_path / "out.json"
-    cmd = f"vspec export json -u {TEST_UNITS} --vspec {spec} --output {output}"
-    process = subprocess.run(cmd.split(), capture_output=True, text=True)
+    log = tmp_path / "log.txt"
+    cmd = f"vspec --log-file {log} export json -u {TEST_UNITS} -q {TEST_QUANT} --vspec {spec} --output {output}"
+    process = subprocess.run(cmd.split())
     assert process.returncode != 0
-    assert "Type not allowed: bosch" in process.stdout
+    log_content = log.read_text()
+    assert "input': 'bosch'" in log_content
+    assert "Input should be 'branch'" in log_content

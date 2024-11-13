@@ -5,11 +5,10 @@
 # https://www.mozilla.org/en-US/MPL/2.0/
 #
 # SPDX-License-Identifier: MPL-2.0
-import os
-from typing import Optional
-from pathlib import Path
-import subprocess
 import filecmp
+import subprocess
+from pathlib import Path
+from typing import Optional
 
 HERE = Path(__file__).resolve().parent
 TEST_UNITS = HERE / ".." / "test_units.yaml"
@@ -23,17 +22,22 @@ def run_unit(
     quantity_argument="",
     grep_present: bool = True,
     grep_string: Optional[str] = None,
+    fails: bool = False,
 ):
     out = tmp_path / "out.json"
-    cmd = f"vspec export json --pretty --vspec {vspec_file} {unit_argument} {quantity_argument} --output {out}"
-    env = os.environ.copy()
-    env["COLUMNS"] = "200"
-    process = subprocess.run(
-        cmd.split(), capture_output=True, text=True, cwd=HERE, env=env, check=True)
-    assert filecmp.cmp(out, HERE / expected_file)
+    log = tmp_path / "log.txt"
+    cmd = f"vspec --log-file {log} export json --pretty --vspec {vspec_file}"
+    cmd += f" {unit_argument} {quantity_argument} --output {out}"
+    process = subprocess.run(cmd.split(), capture_output=True, text=True, cwd=HERE)
+    print(process.stdout)
+    if fails:
+        assert process.returncode != 0
+    else:
+        assert process.returncode == 0
+        assert filecmp.cmp(out, HERE / expected_file)
 
     if grep_string and grep_present:
-        assert grep_string in process.stdout or grep_string in process.stderr
+        assert grep_string in log.read_text() or grep_string in process.stderr
 
 
 def test_default_unit_no_quantity_warning(tmp_path):
@@ -44,28 +48,21 @@ def test_default_unit_no_quantity_warning(tmp_path):
         tmp_path,
         "test.vspec",
         "-u ../test_units.yaml",
-        "expected.json",
+        None,
         "",
         True,
-        "No quantities defined",
+        "No 'quantity' files defined.",
+        True,
     )
     run_unit(
         tmp_path,
         "test.vspec",
         "-u ../test_units.yaml",
-        "expected.json",
+        None,
         "",
         False,
-        "Quantity length used by unit km has not been defined",
-    )
-    run_unit(
-        tmp_path,
-        "test.vspec",
-        "-u ../test_units.yaml",
-        "expected.json",
-        "",
-        False,
-        "Quantity temperature used by unit celsius has not been defined",
+        "Invalid quantity: 'length'",
+        True,
     )
 
 
@@ -77,28 +74,11 @@ def test_default_unit_quantities_missing(tmp_path):
         tmp_path,
         "test.vspec",
         "-u ../test_units.yaml",
-        "expected.json",
+        None,
         "-q test_quantities.yaml",
         False,
-        "No quantities defined",
-    )
-    run_unit(
-        tmp_path,
-        "test.vspec",
-        "-u ../test_units.yaml",
-        "expected.json",
-        "-q test_quantities.yaml",
+        "Invalid quantity: 'length'",
         True,
-        "Quantity length used by unit km has not been defined",
-    )
-    run_unit(
-        tmp_path,
-        "test.vspec",
-        "-u ../test_units.yaml",
-        "expected.json",
-        "-q test_quantities.yaml",
-        True,
-        "Quantity temperature used by unit celsius has not been defined",
     )
 
 

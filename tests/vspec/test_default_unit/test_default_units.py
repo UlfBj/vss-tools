@@ -6,12 +6,13 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 
-from pathlib import Path
-import subprocess
 import filecmp
+import subprocess
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEST_UNITS = HERE / ".." / "test_units.yaml"
+TEST_QUANT = HERE / ".." / "test_quantities.yaml"
 
 
 def run_unit(vspec_file, unit_argument, expected_file, tmp_path):
@@ -23,16 +24,17 @@ def run_unit(vspec_file, unit_argument, expected_file, tmp_path):
 
 def run_unit_error(vspec_file, unit_argument, check_message, tmp_path):
     output = tmp_path / "out.json"
-    cmd = f"vspec export json --pretty --vspec {vspec_file} {unit_argument} --output {output}"
+    log = tmp_path / "log.txt"
+    cmd = f"vspec --log-file {log} export json --pretty --vspec {vspec_file} {unit_argument} --output {output}"
     process = subprocess.run(cmd.split(), capture_output=True, text=True)
     assert process.returncode != 0
-    assert check_message in process.stdout
+    assert check_message in log.read_text()
 
 
 def test_default_ok(tmp_path):
     run_unit(
         HERE / "signals_with_default_units.vspec",
-        "",
+        f"-q {TEST_QUANT}",
         HERE / "expected_default.json",
         tmp_path,
     )
@@ -43,7 +45,7 @@ def test_default_explicit(tmp_path):
     units = HERE / "units.yaml"
     run_unit(
         HERE / "signals_with_default_units.vspec",
-        f"-u {units}",
+        f"-u {units} -q {TEST_QUANT}",
         HERE / "expected_default.json",
         tmp_path,
     )
@@ -53,7 +55,7 @@ def test_default_explicit(tmp_path):
 def test_default_error(tmp_path):
     run_unit_error(
         HERE / "signals_with_default_units.vspec",
-        f"-u {TEST_UNITS}",
-        "Unknown unit",
+        f"-u {TEST_UNITS} -q {TEST_QUANT}",
+        "not a valid unit",
         tmp_path,
     )
