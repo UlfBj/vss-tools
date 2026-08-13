@@ -89,6 +89,7 @@ class VSSRaw(BaseModel):
         with_extra_attributes: bool = True,
         exclude_fields: list[str] = EXPORT_EXCLUDE_ATTRIBUTES,
         extended_attributes: tuple[str, ...] = (),
+        exclude_defaults: bool = False,
     ) -> dict[str, Any]:
         excludes = exclude_fields.copy()
         if not with_extra_attributes:
@@ -96,7 +97,13 @@ class VSSRaw(BaseModel):
                 if extra_attribute not in extended_attributes:
                     excludes.append(extra_attribute)
         data = {}
-        for k, v in self.model_dump(mode="json", exclude_none=False, exclude=set(excludes)).items():
+        dump = self.model_dump(
+            mode="json",
+            exclude_none=False,
+            exclude=set(excludes),
+            exclude_defaults=exclude_defaults,
+        )
+        for k, v in dump.items():
             if k not in extended_attributes:
                 if v == []:
                     continue
@@ -109,7 +116,7 @@ class VSSRaw(BaseModel):
 class VSSData(VSSRaw):
     model_config = ConfigDict(extra="allow")
     type: NodeType
-    description: str = ""
+    description: str | None = None
     comment: str | None = None
     delete: bool = False
     deprecation: str | None = None
@@ -126,16 +133,6 @@ class VSSData(VSSRaw):
         if not re.match(pattern, v):
             raise ValueError(f"'{v}' is not a valid 'constUID'")
         return v
-
-    @model_validator(mode="after")
-    def ensure_description(self) -> Self:
-        """Give better explanation for empty description."""
-        if self.description == "":
-            raise ValueError(
-                "All nodes in the final tree must have a description. "
-                "Implicit branches are not allowed in final tree!"
-            )
-        return self
 
 
 class VSSDataBranch(VSSData):
@@ -160,12 +157,18 @@ class VSSDataBranch(VSSData):
         return v
 
 
+class Qudt(BaseModel):
+    unit: str
+    kind: str = Field(alias="quantity-kind")
+
+
 class VSSUnit(BaseModel):
     definition: str
     unit: str | None
-    quantity: str
+    quantity: str | None = None
     allowed_datatypes: list[str] | None = Field(alias="allowed-datatypes", default=None)
     key: str | None = None  # The actual unit key (e.g., 'km'), populated during loading
+    qudt: Qudt | None = None
 
     @field_validator("quantity")
     @classmethod
@@ -182,6 +185,12 @@ class VSSUnit(BaseModel):
             if value not in datatypes:
                 raise ValueError(f"Invalid datatype: '{value}'")
         return values
+
+    @model_validator(mode="after")
+    def check_quantity(self) -> Self:
+        if self.quantity is None and self.qudt is None:
+            raise ValueError("either 'quantity' or 'qudt.quantity' has to be set")
+        return self
 
 
 class VSSQuantity(BaseModel):
@@ -420,9 +429,10 @@ class VSSDataDatatype(VSSData):
     def check_valid_unit(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        if v not in dynamic_units:
+        v_lower = v.lower()
+        if v_lower not in dynamic_units:
             raise ValueError(f"'{v}' is not a valid unit")
-        return v
+        return dynamic_units[v_lower].key or v_lower
 
     @model_validator(mode="after")
     def check_datatype_matching_allowed_unit_datatypes(self) -> Self:
@@ -433,7 +443,7 @@ class VSSDataDatatype(VSSData):
         if self.unit:
             if not Datatypes.get_type(self.datatype):
                 raise ValueError(f"Cannot use 'unit' with complex datatype: '{self.datatype}'")
-            allowed_datatypes = dynamic_units[self.unit].allowed_datatypes
+            allowed_datatypes = dynamic_units[self.unit.lower()].allowed_datatypes
             if allowed_datatypes is None:
                 allowed_datatypes = []
             if not any(Datatypes.is_subtype_of(self.datatype.rstrip("[]"), a) for a in allowed_datatypes):
@@ -468,8 +478,7 @@ class VSSDataDatatype(VSSData):
                 for def_val in check_values:
                     if not re.match(reg_exp, def_val):
                         raise ValueError(
-                            f"Specified '{value_type}' value: '{def_val}' "
-                            f"must match defined pattern: '{self.pattern}'"
+                            f"Specified '{value_type}' value: '{def_val}' must match defined pattern: '{self.pattern}'"
                         )
 
             if self.default:
