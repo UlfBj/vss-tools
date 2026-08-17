@@ -1,0 +1,51 @@
+# Copyright (c) 2026 Contributors to COVESA
+#
+# This program and the accompanying materials are made available under the
+# terms of the Mozilla Public License 2.0 which is available at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+# SPDX-License-Identifier: MPL-2.0
+
+# HIM 'service' profile (HIM Service Rule Set): a multiplexed microservice.
+# A 'procedure' node managing multiple resources declares 'instances' the
+# same way a 'branch' does; the generated per-resource nodes ('Row1',
+# 'Row1.DriverSide', ...) become plain 'branch' nodes nested under the
+# (singular) 'procedure' node, each carrying its own 'Input'/'Output'
+# iostructs, per the HIM Service Rule Set's "multiplexed microservice tree
+# structure".
+
+VehicleService:
+  type: branch
+  description: Root branch of a service tree.
+
+VehicleService.MoveSeat:
+  type: procedure
+  instances:
+    - Row[1,2]
+    - ["DriverSide", "PassengerSide"]
+  description: Performs all supported seat movements.
+
+VehicleService.MoveSeat.Version:
+  type: attribute
+  datatype: string
+  default: "1.0.0"
+  instantiate: false
+  description: The version of the MoveSeat procedure. Not instantiated per resource.
+
+VehicleService.MoveSeat.Input:
+  type: iostruct
+  description: Input parameters of MoveSeat.
+
+VehicleService.MoveSeat.Input.Position:
+  type: property
+  datatype: float
+  description: Requested seat position.
+
+VehicleService.MoveSeat.Output:
+  type: iostruct
+  description: Output parameters of MoveSeat.
+
+VehicleService.MoveSeat.Output.Status:
+  type: property
+  datatype: string
+  description: Execution status.

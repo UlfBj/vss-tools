@@ -1,0 +1,144 @@
+{
+  "VehicleService": {
+    "children": {
+      "MoveSeat": {
+        "children": {
+          "Row1": {
+            "children": {
+              "DriverSide": {
+                "children": {
+                  "Input": {
+                    "children": {
+                      "Position": {
+                        "datatype": "float",
+                        "description": "Requested seat position.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Input parameters of MoveSeat.",
+                    "type": "iostruct"
+                  },
+                  "Output": {
+                    "children": {
+                      "Status": {
+                        "datatype": "string",
+                        "description": "Execution status.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Output parameters of MoveSeat.",
+                    "type": "iostruct"
+                  }
+                },
+                "description": "Performs all supported seat movements.",
+                "type": "branch"
+              },
+              "PassengerSide": {
+                "children": {
+                  "Input": {
+                    "children": {
+                      "Position": {
+                        "datatype": "float",
+                        "description": "Requested seat position.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Input parameters of MoveSeat.",
+                    "type": "iostruct"
+                  },
+                  "Output": {
+                    "children": {
+                      "Status": {
+                        "datatype": "string",
+                        "description": "Execution status.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Output parameters of MoveSeat.",
+                    "type": "iostruct"
+                  }
+                },
+                "description": "Performs all supported seat movements.",
+                "type": "branch"
+              }
+            },
+            "description": "Performs all supported seat movements.",
+            "type": "branch"
+          },
+          "Row2": {
+            "children": {
+              "DriverSide": {
+                "children": {
+                  "Input": {
+                    "children": {
+                      "Position": {
+                        "datatype": "float",
+                        "description": "Requested seat position.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Input parameters of MoveSeat.",
+                    "type": "iostruct"
+                  },
+                  "Output": {
+                    "children": {
+                      "Status": {
+                        "datatype": "string",
+                        "description": "Execution status.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Output parameters of MoveSeat.",
+                    "type": "iostruct"
+                  }
+                },
+                "description": "Performs all supported seat movements.",
+                "type": "branch"
+              },
+              "PassengerSide": {
+                "children": {
+                  "Input": {
+                    "children": {
+                      "Position": {
+                        "datatype": "float",
+                        "description": "Requested seat position.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Input parameters of MoveSeat.",
+                    "type": "iostruct"
+                  },
+                  "Output": {
+                    "children": {
+                      "Status": {
+                        "datatype": "string",
+                        "description": "Execution status.",
+                        "type": "property"
+                      }
+                    },
+                    "description": "Output parameters of MoveSeat.",
+                    "type": "iostruct"
+                  }
+                },
+                "description": "Performs all supported seat movements.",
+                "type": "branch"
+              }
+            },
+            "description": "Performs all supported seat movements.",
+            "type": "branch"
+          },
+          "Version": {
+            "datatype": "string",
+            "default": "1.0.0",
+            "description": "The version of the MoveSeat procedure. Not instantiated per resource.",
+            "type": "attribute"
+          }
+        },
+        "description": "Performs all supported seat movements.",
+        "type": "procedure"
+      }
+    },
+    "description": "Root branch of a service tree.",
+    "type": "branch"
+  }
+}

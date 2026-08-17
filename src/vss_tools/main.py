@@ -180,8 +180,17 @@ def get_invalid_node_msgs(root: VSSNode) -> list[str]:
     - 'symlink' needs an 'iostruct' parent.
     - 'attribute' needs a 'branch' parent, or ('service' profile) a
       'procedure' parent (the mandatory 'Version' node of a procedure).
-    - All other node types (branch, sensor, actuator, ro, rw,
-      procedure) need a 'branch' parent.
+    - 'branch' additionally accepts a 'procedure' parent ('service'
+      profile): this is the resource-instance branch (e.g. 'Row1',
+      'Row1.DriverSide') nested under a multiplexed microservice
+      procedure node, per the HIM Service Rule Set's "multiplexed
+      microservice tree structure" (each resource instance carries its
+      own 'Input'/'Output' iostructs). A plain 'branch' used this way
+      has no special semantics of its own beyond grouping; it is
+      distinguished from an ordinary 'branch' only by having a
+      'procedure' ancestor.
+    - All other node types (sensor, actuator, ro, rw, procedure) need
+      a 'branch' parent.
 
     Returning error msgs
     """
@@ -204,6 +213,9 @@ def get_invalid_node_msgs(root: VSSNode) -> list[str]:
             if not isinstance(parent_data, VSSDataIostruct):
                 ok = False
         elif isinstance(node.data, VSSDataAttribute):
+            if not isinstance(parent_data, (VSSDataBranch, VSSDataProcedure)):
+                ok = False
+        elif isinstance(node.data, VSSDataBranch):
             if not isinstance(parent_data, (VSSDataBranch, VSSDataProcedure)):
                 ok = False
         else:

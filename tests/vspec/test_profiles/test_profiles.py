@@ -62,6 +62,22 @@ def test_service_profile_ok(tmp_path):
     assert filecmp.cmp(HERE / "expected_service_profile.json", out)
 
 
+def test_service_profile_multiplexed_procedure_instances(tmp_path):
+    """
+    A 'procedure' node managing multiple resources may declare 'instances'
+    the same way a 'branch' does (HIM Service Rule Set "multiplexed
+    microservice tree structure"). The generated per-resource nodes
+    ('Row1', 'Row1.DriverSide', ...) must become plain 'branch' nodes
+    nested under the single 'procedure' node, each with its own
+    'Input'/'Output' iostructs; the procedure's own 'instances' field must
+    not leak into the output, and a non-instantiated attribute (e.g.
+    'Version') must stay singleton rather than being duplicated per
+    resource.
+    """
+    _, _, out = run(tmp_path, "service", "service_profile_multiplexed.vspec", expect_ok=True)
+    assert filecmp.cmp(HERE / "expected_service_profile_multiplexed.json", out)
+
+
 def test_sensor_actuator_rejected_under_data_profile(tmp_path):
     """'sensor'/'actuator' are 'vehicle-data' profile types, not valid under 'data'."""
     _, log, _ = run(tmp_path, "data", "vehicle_data.vspec", expect_ok=False)

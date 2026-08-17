@@ -73,6 +73,53 @@ no per-exporter code changes needed.
 - `docs/vspec_arch.md` (`## HIM Profiles` section) and `README.md`: user
   facing documentation.
 
+### `instances` on `procedure` nodes (resource multiplexing)
+
+A `procedure` node managing multiple resources (e.g. a `MoveSeat` microservice
+that can address any seat) may declare `instances` the same way a `branch`
+does, per the HIM Service Rule Set's "multiplexed microservice tree
+structure" (each resource instance gets its own `Input`/`Output` iostructs,
+nested under the *single* `procedure` node — not one duplicated `procedure`
+node per resource).
+
+This was initially a gap: `VSSDataProcedure.instances` parsed fine (the field
+already existed) but the instance-expansion engine
+(`VSSNode.get_instance_nodes()`/`expand_instance()` in `tree.py`) filtered
+strictly on `isinstance(node.data, VSSDataBranch)`, so a `procedure`'s
+`instances` were silently never expanded (worse: the raw, unexpanded
+`instances` list leaked into exported output). Fixed by:
+
+- `tree.py`'s `get_instance_nodes()` filter now also matches
+  `VSSDataProcedure`.
+- `tree.py`'s `expand_instance()`: when the node being expanded is a
+  `VSSDataProcedure`, each *generated* per-resource-instance node (e.g.
+  `Row1`, `Row1.DriverSide`) is coerced to a plain `branch` (dropping the
+  procedure-only `nativeRate`/`timeToLive` fields, which apply to the
+  singular enclosing procedure, not to each resource instance). Only the
+  original, unexpanded node keeps `type: procedure`.
+- `main.py`'s `get_invalid_node_msgs()`: a `branch` is now also a
+  structurally valid child of a `procedure` (previously only `iostruct` and
+  `attribute`/`Version` were allowed as children of a `procedure` at all,
+  which made the target tree shape illegal independent of the expansion bug
+  above).
+- `tests/vspec/test_profiles/service_profile_multiplexed.vspec` +
+  `expected_service_profile_multiplexed.json` +
+  `test_service_profile_multiplexed_procedure_instances` in
+  `test_profiles.py`: end-to-end regression test for the two-dimensional
+  `Row[1,2] x [DriverSide,PassengerSide]` case, including a non-instantiated
+  `Version` attribute staying singleton rather than being duplicated per
+  resource.
+
+The `json`/`yaml`/`binary` exporters (the ones vissr actually consumes to
+build its `forest/*.binary` service trees) required **no changes** — they
+walk `node.children`/`as_flat_dict()` generically with no
+`isinstance(..., VSSDataBranch)` dependency. Exporters that *do* have such
+dependencies for other reasons (`go.py`, `plantuml.py`,
+`exporters/utils.py`'s `get_instance_root()`/`count_instance_children_depth()`
+helpers) were not touched/verified for the multiplexed-procedure case, since
+nothing in this repo's consumers currently exercises them for service trees;
+flag this if HIM service-profile support is ever needed for those exporters.
+
 ### Deliberate scope limitations (discussed and agreed with the maintainer)
 
 These were explicitly out of scope for the initial implementation ("core
