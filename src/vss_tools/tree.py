@@ -24,6 +24,7 @@ from vss_tools.model import (
     VSSDataProcedure,
     VSSDataProperty,
     VSSDataStruct,
+    VSSDataTypedef,
     VSSRaw,
     get_vss_raw,
     resolve_vss_raw,
@@ -641,6 +642,71 @@ def add_struct_schemas(types_root: VSSNode):
         }
         add_node_schema(types_root, node.get_fqn(), schema)
         dynamic_struct_schemas[node.get_fqn()] = schema
+
+
+def collect_typedefs(types_root: VSSNode | None) -> dict[str, dict[str, Any]]:
+    """
+    Collects the effective metadata dict for every 'typedef' node in
+    types_root, keyed by its fully qualified name. Used by
+    'resolve_typedef_references' to synthesize the effective metadata of
+    nodes elsewhere that reference a typedef by fqn as their 'datatype',
+    per the HIM typedef usage rule set:
+    https://covesa.github.io/hierarchical_information_model/type_definition_rule_set/typedef/
+
+    types_root's typedef nodes must already be resolved (real
+    'VSSDataTypedef' instances, not raw dicts) - true by construction, since
+    'main.get_types_root' resolves types_root before returning it.
+    """
+    typedefs: dict[str, dict[str, Any]] = {}
+    if types_root is None:
+        return typedefs
+    for node in PreOrderIter(types_root, filter_=lambda n: isinstance(n.data, VSSDataTypedef)):
+        typedefs[node.get_fqn()] = node.data.as_dict(exclude_fields=["fqn", "type", "description"])
+    return typedefs
+
+
+def resolve_typedef_references(root: VSSNode, types_root: VSSNode | None) -> None:
+    """
+    For every not-yet-resolved node in root whose 'datatype' names a
+    'typedef' node's fqn in types_root (optionally with a trailing '[]' for
+    an array reference), synthesizes the referencing node's effective
+    metadata per the HIM typedef usage rule set: the referring node's own
+    Name/Type/Description are kept; 'datatype' is always replaced with the
+    typedef's datatype; any other typedef metadata field
+    (unit/min/max/default/enum/allowed/comment) is applied only if the
+    referring node does not already define that field itself.
+
+    Must run after tree building/instance-expansion and before
+    'VSSNode.resolve()': a resolved node's 'datatype' is strictly validated
+    against 'get_all_datatypes()', which typedef fqns are never part of (only
+    'struct' fqns are registered as dynamic datatypes) - so by the time
+    'resolve()' runs, a referencing node must already carry the typedef's
+    concrete datatype, not its fqn, or validation would reject it.
+
+    Chained typedef references (a typedef whose own 'datatype' names another
+    typedef) are not resolved recursively; this is not needed by any current
+    caller and is out of scope here, analogous to 'symlink' cross-tree
+    resolution being out of scope (see AGENTS.md). A referencing node caught
+    in such a chain will fail the normal "is not a valid datatype" check
+    with a clear error rather than resolving incorrectly.
+    """
+    typedefs = collect_typedefs(types_root)
+    if not typedefs:
+        return
+    raw_nodes = findall(root, filter_=lambda n: isinstance(n.data, VSSRaw) and not isinstance(n.data, VSSData))
+    for node in raw_nodes:
+        data_dict = node.data.model_dump(mode="json", exclude={"fqn"})
+        datatype = data_dict.get("datatype")
+        if not isinstance(datatype, str):
+            continue
+        array_suffix = "[]" if datatype.endswith("[]") else ""
+        typedef_dict = typedefs.get(datatype.rstrip("[]"))
+        if typedef_dict is None:
+            continue
+        merged = dict(typedef_dict)
+        merged.update(data_dict)  # the referring node's own fields take priority...
+        merged["datatype"] = typedef_dict["datatype"] + array_suffix  # ...except 'datatype', always from the typedef
+        node.data = get_vss_raw(merged, node.get_fqn())
 
 
 def add_node_schema(root: VSSNode, fqn: str, schema: dict[str, Any]) -> None:

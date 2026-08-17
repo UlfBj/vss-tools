@@ -69,6 +69,10 @@ class NodeType(str, Enum):
     PROCEDURE = "procedure"
     IOSTRUCT = "iostruct"
     SYMLINK = "symlink"
+    # HIM "Type Definition" rule set node type. Usable in the 'Types' tree
+    # (loaded via '--types') regardless of the active profile, same as
+    # branch/struct/property; see '_COMMON_NODE_TYPES' below.
+    TYPEDEF = "typedef"
 
 
 class Profile(str, Enum):
@@ -90,7 +94,11 @@ class Profile(str, Enum):
 #   '--types') in any profile.
 # - attribute is needed both for the 'Types' tree version node and for the
 #   'Version' node of a 'procedure' in the 'service' profile.
-_COMMON_NODE_TYPES = {NodeType.BRANCH, NodeType.STRUCT, NodeType.PROPERTY, NodeType.ATTRIBUTE}
+# - typedef (HIM Type Definition Rule Set) is needed to build a 'Types' tree
+#   node whose metadata (datatype/unit/min/max/default/enum-or-allowed) is
+#   shared by reference from nodes in other trees; see
+#   'resolve_typedef_references' in tree.py.
+_COMMON_NODE_TYPES = {NodeType.BRANCH, NodeType.STRUCT, NodeType.PROPERTY, NodeType.ATTRIBUTE, NodeType.TYPEDEF}
 
 PROFILE_ALLOWED_TYPES: dict[Profile, set[NodeType]] = {
     Profile.VEHICLE_DATA: _COMMON_NODE_TYPES | {NodeType.SENSOR, NodeType.ACTUATOR},
@@ -554,6 +562,22 @@ class VSSDataStruct(VSSData):
     pass
 
 
+class VSSDataTypedef(VSSDataDatatype):
+    """
+    HIM "Type Definition Rule Set" 'typedef' node: defines metadata shared by
+    reference from nodes declared in other trees (e.g. a 'property' node
+    elsewhere whose 'datatype' names this typedef's fqn). Structurally it is
+    a 'VSSDataDatatype' like 'property'/'sensor'/etc - it carries the same
+    datatype/unit/min/max/default/enum/allowed fields - but it never appears
+    directly in an exported tree; a referencing node's effective metadata is
+    synthesized from it before export (see 'resolve_typedef_references' in
+    tree.py), per the HIM typedef usage rule set:
+    https://covesa.github.io/hierarchical_information_model/type_definition_rule_set/typedef/
+    """
+
+    pass
+
+
 class VSSDataAttribute(VSSDataDatatype):
     pass
 
@@ -634,6 +658,7 @@ TYPE_CLASS_MAP = {
     NodeType.PROCEDURE: VSSDataProcedure,
     NodeType.IOSTRUCT: VSSDataIostruct,
     NodeType.SYMLINK: VSSDataSymlink,
+    NodeType.TYPEDEF: VSSDataTypedef,
 }
 
 

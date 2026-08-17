@@ -1,0 +1,40 @@
+# Copyright (c) 2026 Contributors to COVESA
+#
+# This program and the accompanying materials are made available under the
+# terms of the Mozilla Public License 2.0 which is available at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+# SPDX-License-Identifier: MPL-2.0
+
+# HIM Type Definition Rule Set 'typedef' node, referenced by 'datatype' from
+# a node in a 'service' profile tree, per the HIM typedef usage rule set:
+# https://covesa.github.io/hierarchical_information_model/type_definition_rule_set/typedef/
+
+VehicleService:
+  type: branch
+  description: Root branch of a service tree.
+
+VehicleService.GetPosition:
+  type: procedure
+  description: Gets the current position.
+
+VehicleService.GetPosition.Version:
+  type: attribute
+  datatype: string
+  default: "0.0.1"
+  description: The version of the GetPosition procedure.
+
+VehicleService.GetPosition.Output:
+  type: iostruct
+  description: Output parameters of GetPosition.
+
+VehicleService.GetPosition.Output.Latitude:
+  type: property
+  datatype: Types.Common.Percentage
+  description: Latitude output, referencing a typedef by fqn.
+
+VehicleService.GetPosition.Output.CustomMin:
+  type: property
+  datatype: Types.Common.Percentage
+  min: 10
+  description: Overrides the typedef's 'min'; the typedef's 'unit'/'max' still apply.

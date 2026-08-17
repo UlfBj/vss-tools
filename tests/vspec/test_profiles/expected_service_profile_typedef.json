@@ -1,0 +1,64 @@
+{
+  "ComplexDataTypes": {
+    "Types": {
+      "children": {
+        "Common": {
+          "children": {
+            "Percentage": {
+              "datatype": "float",
+              "description": "Percent definition.",
+              "max": 100,
+              "min": 0,
+              "type": "typedef",
+              "unit": "percent"
+            }
+          },
+          "description": "Common definitions.",
+          "type": "branch"
+        }
+      },
+      "description": "Root node for the datatype definition tree.",
+      "type": "branch"
+    }
+  },
+  "VehicleService": {
+    "children": {
+      "GetPosition": {
+        "children": {
+          "Output": {
+            "children": {
+              "CustomMin": {
+                "datatype": "float",
+                "description": "Overrides the typedef's 'min'; the typedef's 'unit'/'max' still apply.",
+                "max": 100,
+                "min": 10,
+                "type": "property",
+                "unit": "percent"
+              },
+              "Latitude": {
+                "datatype": "float",
+                "description": "Latitude output, referencing a typedef by fqn.",
+                "max": 100,
+                "min": 0,
+                "type": "property",
+                "unit": "percent"
+              }
+            },
+            "description": "Output parameters of GetPosition.",
+            "type": "iostruct"
+          },
+          "Version": {
+            "datatype": "string",
+            "default": "0.0.1",
+            "description": "The version of the GetPosition procedure.",
+            "type": "attribute"
+          }
+        },
+        "description": "Gets the current position.",
+        "type": "procedure"
+      }
+    },
+    "description": "Root branch of a service tree.",
+    "type": "branch"
+  }
+}

@@ -27,7 +27,13 @@ from vss_tools.model import (
     get_all_model_fields,
 )
 from vss_tools.strict import StrictExceptions, StrictOption, load_strict_exceptions
-from vss_tools.tree import ModelValidationException, VSSNode, add_struct_schemas, build_tree
+from vss_tools.tree import (
+    ModelValidationException,
+    VSSNode,
+    add_struct_schemas,
+    build_tree,
+    resolve_typedef_references,
+)
 from vss_tools.units_quantities import DuplicatedUnitException, MalformedDictException, load_quantities, load_units
 from vss_tools.vspec import InvalidSpecDuplicatedEntryException, InvalidSpecException, load_vspec
 
@@ -282,6 +288,8 @@ def get_trees(
 
     if expand:
         root.expand_instances()
+
+    resolve_typedef_references(root, types_root)
 
     try:
         root.resolve()

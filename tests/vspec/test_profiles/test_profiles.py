@@ -62,6 +62,28 @@ def test_service_profile_ok(tmp_path):
     assert filecmp.cmp(HERE / "expected_service_profile.json", out)
 
 
+def test_service_profile_typedef_reference(tmp_path):
+    """
+    A node in a 'service' profile tree may reference a HIM Type Definition
+    Rule Set 'typedef' node (from the 'Types' tree loaded via '--types') by
+    naming its fqn as 'datatype'. Per the HIM typedef usage rule set, the
+    referencing node's effective metadata is synthesized: 'datatype' always
+    comes from the typedef, other typedef fields (unit/min/max/...) apply
+    only if the referencing node does not already define them itself, and
+    the typedef node itself is unaffected (still exported as-is in the Types
+    tree).
+    """
+    spec = HERE / "service_profile_typedef.vspec"
+    types = HERE / "service_types_typedef.vspec"
+    out = tmp_path / "out.json"
+    log = tmp_path / "log.txt"
+    cmd = f"vspec --profile service --log-file {log} export json --pretty --vspec {spec} -t {types}"
+    cmd += f" -u {TEST_UNITS} -q {TEST_QUANT} --output {out}"
+    process = subprocess.run(cmd.split(), capture_output=True, text=True)
+    assert process.returncode == 0, process.stderr
+    assert filecmp.cmp(HERE / "expected_service_profile_typedef.json", out)
+
+
 def test_service_profile_multiplexed_procedure_instances(tmp_path):
     """
     A 'procedure' node managing multiple resources may declare 'instances'

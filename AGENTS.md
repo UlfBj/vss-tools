@@ -120,6 +120,65 @@ helpers) were not touched/verified for the multiplexed-procedure case, since
 nothing in this repo's consumers currently exercises them for service trees;
 flag this if HIM service-profile support is ever needed for those exporters.
 
+### `typedef` node type (HIM Type Definition Rule Set)
+
+A `typedef` node (e.g. `Types.Common.Percentage`, `Types.Common.Service.Status`)
+defines metadata that can be shared by reference from nodes declared in
+other trees, per the [HIM Type Definition Rule Set](https://covesa.github.io/hierarchical_information_model/type_definition_rule_set/typedef/).
+A referencing node names the typedef's fqn as its own `datatype`, e.g.:
+
+```yaml
+VehicleService.Foo.Output.Bar:
+  type: property
+  datatype: Types.Common.Percentage   # a typedef's fqn, not a primitive datatype
+  description: ...
+```
+
+This was a genuine gap (not a wiring issue like the two items above):
+`typedef` was not in the `NodeType` enum at all, so any vspec file
+containing it failed immediately with a Pydantic validation error, before
+even reaching profile-specific checks — independent of `--profile`, since
+`typedef` belongs to a fourth, separate HIM rule set. Fixed by:
+
+- `model.py`: added `NodeType.TYPEDEF`, added it to `_COMMON_NODE_TYPES` (a
+  `typedef` is usable in the `Types` tree regardless of the active
+  `--profile`, same as `branch`/`struct`/`property`), and added
+  `VSSDataTypedef(VSSDataDatatype)` (structurally identical to
+  `property`/`sensor`/etc., since a typedef carries the same
+  datatype/unit/min/max/default/enum/allowed fields), wired into
+  `TYPE_CLASS_MAP`.
+- `tree.py`: added `collect_typedefs()`/`resolve_typedef_references()`. Per
+  the HIM "typedef usage rule set", a referencing node's effective metadata
+  is: `Name`/`Type`/`Description` from the referring node; `datatype` always
+  from the typedef; any other typedef field (unit/min/max/default/enum/
+  allowed/comment) applied only if the referring node does not already
+  define that field itself (so a referencing node can locally override e.g.
+  just `min` while still inheriting the typedef's `unit`/`max`).
+- `main.py`: `resolve_typedef_references(root, types_root)` is called in
+  `get_trees()` after `expand_instances()` but *before* `root.resolve()` —
+  it must run before resolution because a resolved node's `datatype` is
+  strictly validated against `get_all_datatypes()`, which typedef fqns are
+  never part of (only `struct` fqns are registered as dynamic datatypes via
+  `dynamic_datatypes`); by the time `resolve()` runs, a referencing node
+  must already carry the typedef's concrete datatype, not its fqn.
+- Chained typedef references (a typedef whose own `datatype` names another
+  typedef) are **not** resolved recursively — out of scope, analogous to how
+  `symlink` cross-tree resolution is already out of scope (see below). A
+  node caught in such a chain gets a clear "is not a valid datatype" error
+  rather than resolving incorrectly.
+- `tests/vspec/test_profiles/service_profile_typedef.vspec` +
+  `service_types_typedef.vspec` + `expected_service_profile_typedef.json` +
+  `test_service_profile_typedef_reference` in `test_profiles.py`: regression
+  test covering both a plain typedef reference and a reference that locally
+  overrides one typedef field.
+- `vissr`'s example trees (`ServiceTypes-example.vspec`/
+  `ServiceSpecification-example.vspec`) use `typedef` for
+  `Types.Common.Service.Status`/`Types.Common.Percentage` and require a
+  `units.yaml` defining `percent` (with a matching `quantities.yaml` entry)
+  to compile — neither existed in `vissr/resources/` before, since the
+  original checked-in tree files must have been produced by a different
+  vss-tools variant that supported `typedef` and had a units file supplied.
+
 ### Deliberate scope limitations (discussed and agreed with the maintainer)
 
 These were explicitly out of scope for the initial implementation ("core
