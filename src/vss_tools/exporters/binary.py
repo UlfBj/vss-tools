@@ -24,6 +24,9 @@
 #
 # if a field is not present (e.g. min, max, unit, allowed, default, validate),
 # the length is 0.
+#
+# Enums (the "enum" attribute) are exported in the allowed field, using the numeric
+# enum values. The symbolic enum names are not part of the binary format.
 
 import struct
 from pathlib import Path
@@ -87,10 +90,19 @@ def export_node(node: VSSNode, f: BinaryIO):
     f.write(create_l8v_string(str(data.get("max", ""))))
     f.write(create_l8v_string(data.get("unit", "")))
 
-    if data.get("allowed") is None:
+    allowed = data.get("allowed")
+    enum = data.get("enum")
+    if allowed is None and enum:
+        # The binary format has no dedicated field for enums. Export the numeric enum
+        # values as allowed values, so that consumers can restrict values accordingly.
+        # 'allowed' and 'enum' are mutually exclusive, so there is no conflict.
+        # The symbolic names are not included in the binary format.
+        allowed = list(enum.values())
+
+    if allowed is None:
         f.write(struct.pack("H", 0))
     else:
-        f.write(create_l16v_string(allowedString(data.get("allowed", ""))))
+        f.write(create_l16v_string(allowedString(allowed)))
 
     f.write(create_l8v_string(str(data.get("default", ""))))
     f.write(create_l8v_string(str(data.get("validate", ""))))

@@ -38,3 +38,21 @@ A.AllowedString:
   - B
   type: actuator
   description: A list of allowed strings
+
+A.EnumUint8:
+  datatype: uint8
+  enum:
+    'AKITA': 0
+    'BOXER': 1
+    'CHOW_CHOW': 5
+  default: 1
+  type: attribute
+  description: An enum
+
+A.EnumUint8Array:
+  datatype: uint8[]
+  enum:
+    'AKITA': 0
+    'BOXER': 1
+  type: attribute
+  description: An enum array
