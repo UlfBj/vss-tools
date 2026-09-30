@@ -35,6 +35,18 @@ char* getTypeName(nodeTypes_t type) {
             return "STRUCT";
         case PROPERTY:
             return "PROPERTY";
+        case RO:
+            return "RO";
+        case RW:
+            return "RW";
+        case PROCEDURE:
+            return "PROCEDURE";
+        case IOSTRUCT:
+            return "IOSTRUCT";
+        case SYMLINK:
+            return "SYMLINK";
+        case TYPEDEF:
+            return "TYPEDEF";
         default:
             printf("getTypeName: unknown type(%d)\n", type);
             return "unknown";

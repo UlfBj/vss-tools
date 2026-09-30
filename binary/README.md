@@ -68,6 +68,32 @@ and assuming a binary tree file has been created in the VSS parent directory:
 ./gotestparser ../../../vss_rel_<current version>.binary
 ```
 
+## HIM Profiles
+
+The binary exporter and the parsers support the node types of all [HIM](https://github.com/COVESA/hierarchical_information_model)
+profiles. The profile is selected with the top-level `--profile` option of `vspec`, for example:
+
+```bash
+vspec --profile service export binary -u spec/units.yaml --vspec services.vspec -o services.binary
+```
+
+Profile         | Node types
+----------------|----------------------------------------------------------------
+vehicle-data    | branch, sensor, actuator, attribute, struct, property
+data            | branch, ro, rw, struct, property
+service         | branch, procedure, iostruct, symlink, attribute, struct, property
+(type definition) | typedef (in the tree given by `--types`, for any profile)
+
+The node type is stored as a string in the NodeType field, and is mapped to a node type constant by the parsers
+(`RO`, `RW`, `PROCEDURE`, `IOSTRUCT`, `SYMLINK`, `TYPEDEF` in addition to the original `SENSOR`, `ACTUATOR`, `ATTRIBUTE`, `BRANCH`,
+`STRUCT`, `PROPERTY`). `BRANCH`, `STRUCT`, `PROCEDURE` and `IOSTRUCT` nodes only contain other nodes, so they are not reported as
+leaf nodes (e.g. by the node list command), and they, like `SYMLINK`, have no datatype, unit or allowed values.
+
+The binary format is the same for all profiles. The following node data is not part of the format, and is thus not exported:
+
+- the `path`, `domain` and `version` of a `symlink` node
+- the `nativeRate` and `timeToLive` of a `procedure` node
+
 ## Encoding
 
 The binary node file format is as follows:

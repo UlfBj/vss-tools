@@ -6,9 +6,12 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 
+import json
 import struct
 import subprocess
 from pathlib import Path
+
+import pytest
 
 HERE = Path(__file__).resolve().parent
 TEST_UNITS = HERE / ".." / "vspec" / "test_units.yaml"
@@ -19,29 +22,37 @@ BIN_DIR = HERE / ".." / ".." / "binary"
 def check_expected_for_tool(tool_path, signal_name: str, grep_str: str, test_binary):
     stdin = f"m\n{signal_name}\n1\nq"
     cmd = f"{tool_path} {test_binary}"
-    process = subprocess.run(cmd.split(), input=stdin, check=True, capture_output=True, text=True)
-    print(process.stdout)
-    assert grep_str in process.stdout
+    process = subprocess.run(cmd.split(), input=stdin.encode(), check=True, capture_output=True)
+    out = process.stdout.decode()
+    print(out)
+    assert grep_str in out
+    assert "nknown type" not in out
 
 
-def test_binary(tmp_path):
+@pytest.fixture(scope="module")
+def parsers(tmp_path_factory) -> list[Path]:
+    """Builds the C and Go test parsers, returns the paths to the executables"""
+    build_dir = tmp_path_factory.mktemp("parsers")
+    ctestparser = build_dir / "ctestparser"
+    gotestparser = build_dir / "gotestparser"
+    cmd = f"cc {BIN_DIR / 'c_parser/testparser.c'} {BIN_DIR / 'c_parser/cparserlib.c'} -o {ctestparser}"
+    subprocess.run(cmd.split(), check=True)
+    cmd = f"go build -o {gotestparser} testparser.go"
+    subprocess.run(cmd.split(), check=True, cwd=BIN_DIR / "go_parser")
+    return [ctestparser, gotestparser]
+
+
+def test_binary(tmp_path, parsers):
     """
     Tests binary tools by generating binary file and using test parsers to interpret them and request
     some basic information.
     """
 
     test_binary = tmp_path / "test.binary"
-    ctestparser = tmp_path / "ctestparser"
-    gotestparser = tmp_path / "gotestparser"
     cmd = f"vspec export binary  -u {TEST_UNITS}"
     cmd += f" -q {TEST_QUANT} -s {HERE / 'test.vspec'} -o {test_binary}"
     subprocess.run(cmd.split(), check=True)
-    cmd = f"cc {BIN_DIR / 'c_parser/testparser.c'} {BIN_DIR / 'c_parser/cparserlib.c'} -o {ctestparser}"
-    subprocess.run(cmd.split(), check=True)
-    cmd = f"go build -o {gotestparser} testparser.go"
-    subprocess.run(cmd.split(), check=True, cwd=BIN_DIR / "go_parser")
 
-    parsers = [ctestparser, gotestparser]
     for parser in parsers:
         check_expected_for_tool(parser, "A.String", "Node type=SENSOR", test_binary)
         check_expected_for_tool(parser, "A.Int", "Node type=ACTUATOR", test_binary)
@@ -133,3 +144,77 @@ def test_binary_enum(tmp_path):
     # 'allowed' is still exported as before, and signals without enum/allowed have no allowed values
     assert nodes["AllowedInt"]["allowed"] == ["0", "10", "20"]
     assert nodes["Int"]["allowed"] == []
+
+
+PROFILES = HERE / ".." / "vspec" / "test_profiles"
+
+
+def export_profile(tmp_path, profile: str, vspec: str, types: str | None = None) -> tuple[Path, Path]:
+    """Exports a vspec file from tests/vspec/test_profiles with the given HIM profile, returns main/types binary"""
+    main_binary = tmp_path / "main.binary"
+    types_binary = tmp_path / "types.binary"
+    cmd = f"vspec --profile {profile} export binary -u {TEST_UNITS} -q {TEST_QUANT}"
+    cmd += f" -s {PROFILES / vspec} -o {main_binary}"
+    if types:
+        cmd += f" --types {PROFILES / types} --types-output {types_binary}"
+    subprocess.run(cmd.split(), check=True)
+    return main_binary, types_binary
+
+
+def leaf_paths(parser, test_binary, cwd: Path) -> list[str]:
+    """Uses the node list command of a test parser, which generates nodelist.txt in the current directory"""
+    subprocess.run([str(parser), str(test_binary)], input=b"n\nq", check=True, capture_output=True, cwd=cwd)
+    return json.loads((cwd / "nodelist.txt").read_text())["leafpaths"]
+
+
+def test_binary_data_profile(tmp_path, parsers):
+    """The HIM Data profile node types ro/rw shall be understood by the binary parsers"""
+    test_binary, _ = export_profile(tmp_path, "data", "data_profile.vspec")
+    for parser in parsers:
+        check_expected_for_tool(parser, "Occupant", "Node type=BRANCH", test_binary)
+        check_expected_for_tool(parser, "Occupant.Name", "Node type=RO", test_binary)
+        check_expected_for_tool(parser, "Occupant.LocalTemperature", "Node type=RW", test_binary)
+        assert leaf_paths(parser, test_binary, tmp_path) == ["Occupant.Name", "Occupant.LocalTemperature"]
+
+
+def test_binary_service_profile(tmp_path, parsers):
+    """The HIM Service profile node types procedure/iostruct/symlink shall be understood by the binary parsers"""
+    test_binary, _ = export_profile(tmp_path, "service", "service_profile.vspec")
+    for parser in parsers:
+        check_expected_for_tool(parser, "VehicleService.GetPosition", "Node type=PROCEDURE", test_binary)
+        check_expected_for_tool(parser, "VehicleService.GetPosition.Version", "Node type=ATTRIBUTE", test_binary)
+        check_expected_for_tool(parser, "VehicleService.GetPosition.Output", "Node type=IOSTRUCT", test_binary)
+        check_expected_for_tool(parser, "VehicleService.GetPosition.Output.Latitude", "Node type=PROPERTY", test_binary)
+        check_expected_for_tool(
+            parser, "VehicleService.GetPosition.Output.LatitudeLink", "Node type=SYMLINK", test_binary
+        )
+        # procedure and iostruct are containers, so not leaf nodes, while symlink is a leaf node
+        assert leaf_paths(parser, test_binary, tmp_path) == [
+            "VehicleService.GetPosition.Version",
+            "VehicleService.GetPosition.Output.Latitude",
+            "VehicleService.GetPosition.Output.LatitudeLink",
+        ]
+
+
+def test_binary_service_profile_multiplexed(tmp_path, parsers):
+    """A procedure with instances has branches (per resource instance) and iostructs as children"""
+    test_binary, _ = export_profile(tmp_path, "service", "service_profile_multiplexed.vspec")
+    for parser in parsers:
+        check_expected_for_tool(parser, "VehicleService.MoveSeat", "Node type=PROCEDURE", test_binary)
+        check_expected_for_tool(parser, "VehicleService.MoveSeat.Row1", "Node type=BRANCH", test_binary)
+        check_expected_for_tool(
+            parser, "VehicleService.MoveSeat.Row2.DriverSide.Input", "Node type=IOSTRUCT", test_binary
+        )
+        check_expected_for_tool(
+            parser, "VehicleService.MoveSeat.Row2.DriverSide.Output.Status", "Node type=PROPERTY", test_binary
+        )
+
+
+def test_binary_typedef(tmp_path, parsers):
+    """The HIM typedef node type shall be understood by the binary parsers (in the types tree)"""
+    test_binary, types_binary = export_profile(
+        tmp_path, "service", "service_profile_typedef.vspec", "service_types_typedef.vspec"
+    )
+    for parser in parsers:
+        check_expected_for_tool(parser, "Types.Common.Percentage", "Node type=TYPEDEF", types_binary)
+        check_expected_for_tool(parser, "VehicleService.GetPosition.Output.Latitude", "Node type=PROPERTY", test_binary)

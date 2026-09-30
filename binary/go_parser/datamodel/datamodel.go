@@ -24,7 +24,18 @@ const (   // allowed elements of nodeTypes_t
     BRANCH = 4
     STRUCT = 5
     PROPERTY = 6
+    RO = 7
+    RW = 8
+    PROCEDURE = 9
+    IOSTRUCT = 10
+    SYMLINK = 11
+    TYPEDEF = 12
 )
+
+// SENSOR..PROPERTY are the node types of the HIM Vehicle-Data profile (i.e. VSS),
+// RO/RW are added by the HIM Data profile, PROCEDURE/IOSTRUCT/SYMLINK by the HIM Service
+// profile, and TYPEDEF by the HIM Type Definition rule set (BRANCH/STRUCT/PROPERTY are common).
+// New types are appended to keep the values of the existing types unchanged.
 
 type Node_t struct {
     Name string
@@ -60,11 +71,39 @@ func StringToNodetype(nodeType string) uint8 {
     if (nodeType == "struct") {
         return STRUCT
     }
-    if (nodeType == "propery") {
+    if (nodeType == "property") {
         return PROPERTY
+    }
+    if (nodeType == "ro") {
+        return RO
+    }
+    if (nodeType == "rw") {
+        return RW
+    }
+    if (nodeType == "procedure") {
+        return PROCEDURE
+    }
+    if (nodeType == "iostruct") {
+        return IOSTRUCT
+    }
+    if (nodeType == "symlink") {
+        return SYMLINK
+    }
+    if (nodeType == "typedef") {
+        return TYPEDEF
     }
     fmt.Printf("Unknown type! |%s|\n", nodeType);
     return 0
+}
+
+// IsContainerType returns true for node types that are only containers of other nodes, i.e. never leaf nodes.
+func IsContainerType(nodeType NodeTypes_t) bool {
+    return nodeType == BRANCH || nodeType == STRUCT || nodeType == PROCEDURE || nodeType == IOSTRUCT
+}
+
+// IsTypeWithoutDatatype returns true for node types that do not have datatype, unit, or allowed values.
+func IsTypeWithoutDatatype(nodeType NodeTypes_t) bool {
+    return IsContainerType(nodeType) || nodeType == SYMLINK
 }
 
 func ValidateToInt(validate string) uint8 {
@@ -97,7 +136,25 @@ func NodetypeToString(nodeType NodeTypes_t) string {
         return "struct"
     }
     if (nodeType == PROPERTY) {
-        return "propery"
+        return "property"
+    }
+    if (nodeType == RO) {
+        return "ro"
+    }
+    if (nodeType == RW) {
+        return "rw"
+    }
+    if (nodeType == PROCEDURE) {
+        return "procedure"
+    }
+    if (nodeType == IOSTRUCT) {
+        return "iostruct"
+    }
+    if (nodeType == SYMLINK) {
+        return "symlink"
+    }
+    if (nodeType == TYPEDEF) {
+        return "typedef"
     }
     fmt.Printf("Unknown type! |%d|\n", nodeType);
     return ""

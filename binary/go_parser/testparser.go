@@ -34,6 +34,18 @@ func getTypeName(nodeType def.NodeTypes_t) string {
             return "STRUCT"
         case def.PROPERTY:
             return "PROPERTY"
+        case def.RO:
+            return "RO"
+        case def.RW:
+            return "RW"
+        case def.PROCEDURE:
+            return "PROCEDURE"
+        case def.IOSTRUCT:
+            return "IOSTRUCT"
+        case def.SYMLINK:
+            return "SYMLINK"
+        case def.TYPEDEF:
+            return "TYPEDEF"
         default:
             fmt.Printf("getTypeName: unknown type(%d)\n", nodeType)
             return "unknown"

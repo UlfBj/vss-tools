@@ -196,7 +196,7 @@ func saveMatchingNode(thisNode *def.Node_t, context *SearchContext_t, done *bool
 		context.SpeculationIndex++
 	}
 	context.MaxValidation = getMaxValidation(VSSgetValidation(thisNode), context.MaxValidation)
-	if (VSSgetType(thisNode) != def.BRANCH  && VSSgetType(thisNode) != def.STRUCT || context.LeafNodesOnly == false) {
+	if (def.IsContainerType(VSSgetType(thisNode)) == false || context.LeafNodesOnly == false) {
 		if ( isGetLeafNodeList == false && isGetUuidList == false) {
 			context.SearchData[context.NumOfMatches].NodePath = context.MatchPath
 			context.SearchData[context.NumOfMatches].NodeHandle = thisNode
@@ -344,7 +344,7 @@ func populateNode(thisNode *def.Node_t) {
 	thisNode.Description = string(readBytes((uint32)(DescrLen)))
 
 	DatatypeLen := deSerializeUInt(readBytes(1)).(uint8)
-	if (thisNode.NodeType != def.BRANCH && thisNode.NodeType != def.STRUCT) {
+	if (def.IsTypeWithoutDatatype(thisNode.NodeType) == false) {
 	    thisNode.Datatype = string(readBytes((uint32)(DatatypeLen)))
 	}
 
@@ -656,7 +656,7 @@ func VSSgetType(nodeHandle *def.Node_t) def.NodeTypes_t {
 
 func VSSgetDatatype(nodeHandle *def.Node_t) string {
 	nodeType := VSSgetType(nodeHandle)
-	if (nodeType != def.BRANCH && nodeType != def.STRUCT) {
+	if (def.IsTypeWithoutDatatype(nodeType) == false) {
 		return nodeHandle.Datatype
 	}
 	return ""
@@ -676,7 +676,7 @@ func VSSgetDescr(nodeHandle *def.Node_t) string {
 
 func VSSgetNumOfAllowedElements(nodeHandle *def.Node_t) int {
 	nodeType := VSSgetType(nodeHandle);
-	if (nodeType != def.BRANCH && nodeType != def.STRUCT) {
+	if (def.IsTypeWithoutDatatype(nodeType) == false) {
 		return (int)(nodeHandle.Allowed)
 	}
 	return 0
@@ -688,7 +688,7 @@ func VSSgetAllowedElement(nodeHandle *def.Node_t, index int) string {
 
 func VSSgetUnit(nodeHandle *def.Node_t) string {
 	nodeType := VSSgetType(nodeHandle)
-	if (nodeType != def.BRANCH && nodeType != def.STRUCT) {
+	if (def.IsTypeWithoutDatatype(nodeType) == false) {
 		return nodeHandle.Unit
 	}
 	return ""
