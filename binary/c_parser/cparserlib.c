@@ -105,8 +105,34 @@ nodeTypes_t stringToNodeType(char* type) {
         return STRUCT;
     if (strcmp(type, "property") == 0)
         return PROPERTY;
+    if (strcmp(type, "ro") == 0)
+        return RO;
+    if (strcmp(type, "rw") == 0)
+        return RW;
+    if (strcmp(type, "procedure") == 0)
+        return PROCEDURE;
+    if (strcmp(type, "iostruct") == 0)
+        return IOSTRUCT;
+    if (strcmp(type, "symlink") == 0)
+        return SYMLINK;
+    if (strcmp(type, "typedef") == 0)
+        return TYPEDEF;
     printf("Unknown type! |%s|\n", type);
     return UNKNOWN;
+}
+
+/**
+ * Node types that are only containers of other nodes, i.e. they are never leaf nodes.
+ **/
+bool isContainerType(nodeTypes_t type) {
+    return type == BRANCH || type == STRUCT || type == PROCEDURE || type == IOSTRUCT;
+}
+
+/**
+ * Node types that do not have datatype, unit, or allowed values.
+ **/
+bool isTypeWithoutDatatype(nodeTypes_t type) {
+    return isContainerType(type) || type == SYMLINK;
 }
 
 char* nodeTypeToString(nodeTypes_t type) {
@@ -122,6 +148,18 @@ char* nodeTypeToString(nodeTypes_t type) {
         return "struct";
     if (type == PROPERTY)
         return "property";
+    if (type == RO)
+        return "ro";
+    if (type == RW)
+        return "rw";
+    if (type == PROCEDURE)
+        return "procedure";
+    if (type == IOSTRUCT)
+        return "iostruct";
+    if (type == SYMLINK)
+        return "symlink";
+    if (type == TYPEDEF)
+        return "typedef";
     printf("Unknown type! |%d|\n", type);
     return "";
 }
@@ -238,7 +276,7 @@ int saveMatchingNode(long thisNode, SearchContext_t* context, bool* done) {
 		context->speculationIndex++;
 	}
 	context->maxValidation = getMaxValidation(VSSgetValidation(thisNode), context->maxValidation);
-	if ((VSSgetType(thisNode) != BRANCH && VSSgetType(thisNode) != STRUCT) || context->leafNodesOnly == false) {
+	if (isContainerType(VSSgetType(thisNode)) == false || context->leafNodesOnly == false) {
 		if ( isGetLeafNodeList == false && isGetUuidList == false) {
 			strcpy(context->searchData[context->numOfMatches].responsePaths, context->matchPath);
 			context->searchData[context->numOfMatches].foundNodeHandles = thisNode;
@@ -526,7 +564,9 @@ void writeNode(struct node_t* node) {
 }
 
 struct node_t* traverseAndReadNode(struct node_t* parentNode) {
-	node_t* thisNode = (node_t*) malloc(sizeof(node_t));
+	// calloc() so that optional fields that are not present in the file (e.g. datatype, min, max, unit, default)
+	// are NULL and not uninitialized pointers
+	node_t* thisNode = (node_t*) calloc(1, sizeof(node_t));
 	updateReadMetadata(true);
 	populateNode(thisNode);
 
@@ -718,7 +758,7 @@ nodeTypes_t VSSgetType(long nodeHandle) {
 
 char* VSSgetDatatype(long nodeHandle) {
 	nodeTypes_t type = VSSgetType(nodeHandle);
-	if (type != BRANCH && type != STRUCT)
+	if (isTypeWithoutDatatype(type) == false)
 		return ((node_t*)((intptr_t)nodeHandle))->datatype;
 	return NULL;
 }
@@ -741,7 +781,7 @@ char* VSSgetDescr(long nodeHandle) {
 
 int VSSgetNumOfAllowedElements(long nodeHandle) {
 	nodeTypes_t type = VSSgetType(nodeHandle);
-	if (type != BRANCH && type != STRUCT)
+	if (isTypeWithoutDatatype(type) == false)
 		return (int)(((node_t*)((intptr_t)nodeHandle))->allowed);
 	return 0;
 }
@@ -757,7 +797,7 @@ char* VSSgetDefault(long nodeHandle) {
 
 char* VSSgetUnit(long nodeHandle) {
 	nodeTypes_t type = VSSgetType(nodeHandle);
-	if (type != BRANCH && type != STRUCT)
+	if (isTypeWithoutDatatype(type) == false)
 		return ((node_t*)((intptr_t)nodeHandle))->unit;
 	return NULL;
 }

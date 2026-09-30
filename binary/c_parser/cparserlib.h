@@ -17,7 +17,11 @@ extern "C" {
 #include <stdint.h>
 
 #define UNKNOWN 0
-typedef enum {SENSOR=1, ACTUATOR, ATTRIBUTE, BRANCH, STRUCT, PROPERTY } nodeTypes_t;
+// SENSOR..PROPERTY are the node types of the HIM Vehicle-Data profile (i.e. VSS),
+// RO/RW are added by the HIM Data profile, PROCEDURE/IOSTRUCT/SYMLINK by the HIM Service
+// profile, and TYPEDEF by the HIM Type Definition rule set (BRANCH/STRUCT/PROPERTY are common).
+// New types are appended to keep the values of the existing types unchanged.
+typedef enum {SENSOR=1, ACTUATOR, ATTRIBUTE, BRANCH, STRUCT, PROPERTY, RO, RW, PROCEDURE, IOSTRUCT, SYMLINK, TYPEDEF } nodeTypes_t;
 
 #define MAXALLOWEDELEMENTLEN 64
 typedef char allowed_t[MAXALLOWEDELEMENTLEN];

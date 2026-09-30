@@ -179,6 +179,25 @@ even reaching profile-specific checks — independent of `--profile`, since
   original checked-in tree files must have been produced by a different
   vss-tools variant that supported `typedef` and had a units file supplied.
 
+### Binary exporter / parsers (`binary/`)
+
+The `binary` exporter itself is profile-agnostic (it writes `type` as a string and has no `isinstance` dependencies),
+but the C (`binary/c_parser`) and Go (`binary/go_parser`) parsers map the type string to a constant and originally only
+knew the six VSS types, so `ro`/`rw`/`procedure`/`iostruct`/`symlink`/`typedef` were reported as "Unknown type". Fixed by:
+
+- Adding `RO`, `RW`, `PROCEDURE`, `IOSTRUCT`, `SYMLINK`, `TYPEDEF` constants (appended, so the existing values are unchanged)
+  and string mappings in both parsers and both test parsers.
+- `BRANCH`/`STRUCT`/`PROCEDURE`/`IOSTRUCT` are containers (never leaf nodes); these plus `SYMLINK` have no datatype/unit/allowed.
+  Implemented with `isContainerType()`/`isTypeWithoutDatatype()` (C) and `IsContainerType()`/`IsTypeWithoutDatatype()` (Go).
+- Fixed a Go typo: `"propery"` was used instead of `"property"` in `datamodel.go`, so `property` nodes were "Unknown type"
+  when parsed by the Go parser (the C parser was correct).
+- C parser: nodes are now `calloc`ed, since optional fields that are absent in the file (e.g. datatype of a `symlink`) were left as
+  uninitialized pointers.
+- The binary format is unchanged. `symlink` `path`/`domain`/`version` and `procedure` `nativeRate`/`timeToLive` are not part of it
+  and are therefore not exported (agreed with the maintainer; extending the format would break existing consumers like VISSR).
+- Enums are exported as numeric values in the `Allowed` field (symbolic names are not exported).
+- `tests/binary/test_binary.py` covers all profiles with both parsers.
+
 ### Deliberate scope limitations (discussed and agreed with the maintainer)
 
 These were explicitly out of scope for the initial implementation ("core
