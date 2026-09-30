@@ -101,6 +101,10 @@ Children    | uint8     | 1
 The Allowed string contains an array of allowed, each Allowed is preceeded by two characters holding the size of the Allowed sub-string.
 The size is in hex format, with values from "01" to "FF". An example is "03abc0A012345678902cd" which contains the three Alloweds "abc", "0123456789", and "cd".
 
+Signals defined with `enum` are encoded in the Allowed field, using the numeric values of the enum.
+For example, `enum: {'AKITA': 0, 'BOXER': 1}` is encoded as "010011" (the two Alloweds "0" and "1").
+The symbolic enum names are not included in the binary format.
+
 The nodes are written into the file in the order given by a recursive method as shown in the following pseudocode:
 
 ```python

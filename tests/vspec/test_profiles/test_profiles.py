@@ -14,6 +14,7 @@ used to validate node 'type' values and parent/child nesting rules.
 """
 
 import filecmp
+import re
 import subprocess
 from pathlib import Path
 
@@ -153,6 +154,8 @@ def test_profile_choice_validation(tmp_path, profile):
     process = subprocess.run(cmd.split(), capture_output=True, text=True)
     if profile == "invalid-profile":
         assert process.returncode != 0
-        assert "Invalid value for '--profile'" in process.stderr
+        # Strip ANSI color codes, which may be emitted by the rich based CLI output (e.g. in CI)
+        stderr = re.sub(r"\x1b\[[0-9;]*m", "", process.stderr)
+        assert "Invalid value for '--profile'" in stderr
     else:
         assert process.returncode == 0, process.stdout + process.stderr
